@@ -59,10 +59,32 @@ Clone the repository directly into `/home/dvla/dvla_big_data_lab` and ensure the
    ```bash
    sudo mkdir -p /home/dvla/dvla_big_data_lab
    ```
-2. Copy or clone your repository into this directory. If cloning via Git:
-   ```bash
-   sudo git clone https://github.com/your-repo/dvla_big_data_lab.git /home/dvla/dvla_big_data_lab
-   ```
+
+2. Clone your repository into this directory using one of the following methods:
+
+   * **Option A: Private Repository via SSH Key (Recommended)**:
+     1. Generate an SSH key pair on the Ubuntu server:
+        ```bash
+        ssh-keygen -t ed25519 -C "ubuntu-server@dvla-lab"
+        ```
+        *(Press Enter to accept defaults; you do not need a passphrase).*
+     2. Output the public key:
+        ```bash
+        cat ~/.ssh/id_ed25519.pub
+        ```
+     3. Copy the output. Log into GitHub, navigate to **Settings -> SSH and GPG keys -> New SSH key**, paste the key, and save it.
+     4. Clone using the SSH URL:
+        ```bash
+        sudo git clone git@github.com:telstarone/dvla_big_data_lab.git /home/dvla/dvla_big_data_lab
+        ```
+
+   * **Option B: Private Repository via Personal Access Token (PAT)**:
+     1. Generate a token on GitHub: **Settings -> Developer Settings -> Personal Access Tokens (classic)**. Generate a new token and select the `repo` scope.
+     2. Clone by prepending the token to the repository URL:
+        ```bash
+        sudo git clone https://<YOUR_PERSONAL_ACCESS_TOKEN>@github.com/telstarone/dvla_big_data_lab.git /home/dvla/dvla_big_data_lab
+        ```
+
 3. Update ownership and permissions:
    ```bash
    sudo chown -R dvla:dvla /home/dvla/dvla_big_data_lab

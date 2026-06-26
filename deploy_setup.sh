@@ -71,6 +71,11 @@ java -version
 echo -e "\n[STEP 3] Copying application code to $APP_DIR..."
 mkdir -p "$APP_DIR"
 
+# NOTE: The setup script copies code from the active working directory where 
+# you execute this script (e.g. your cloned user folder /home/ubuntu/dvla_big_data_lab).
+# Because you clone the repo first, you DO NOT need to configure GitHub access 
+# tokens or SSH credentials inside this setup script.
+#
 # Copy all files from the current folder to the target directory
 # (excluding venv, git metadata, and caches)
 rsync -av --progress ./ "$APP_DIR/" \
