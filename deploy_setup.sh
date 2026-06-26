@@ -46,7 +46,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 2. Install System Packages (JDK 17, Python3, Nginx, Certbot)
+# 2. Install System Dependencies (JDK 17, Python3, Apache, Certbot)
 # -----------------------------------------------------------------------------
 echo -e "\n[STEP 2] Updating repositories and installing packages..."
 apt-get update -y
@@ -55,9 +55,9 @@ apt-get install -y \
     python3-pip \
     python3-venv \
     openjdk-17-jdk-headless \
-    nginx \
+    apache2 \
     certbot \
-    python3-certbot-nginx \
+    python3-certbot-apache \
     git \
     ufw
 
@@ -164,61 +164,68 @@ systemctl start jupyter.service
 echo "Services registered and started successfully."
 
 # -----------------------------------------------------------------------------
-# 7. Configure Nginx Reverse Proxy
+# 7. Configure Apache Reverse Proxy
 # -----------------------------------------------------------------------------
-echo -e "\n[STEP 7] Provisioning Nginx Configuration..."
+echo -e "\n[STEP 7] Provisioning Apache Configuration..."
 
-NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
+APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
 
-cat <<EOF > "$NGINX_CONF"
-server {
-    listen 80;
-    server_name $DOMAIN;
+# Enable required Apache modules for proxying and websockets
+a2enmod proxy
+a2enmod proxy_http
+a2enmod proxy_wstunnel
+a2enmod rewrite
+a2enmod headers
 
-    # Streamlit Reverse Proxy
-    location / {
-        proxy_pass http://127.0.0.1:8503;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_buffering off;
-    }
+cat <<EOF > "$APACHE_CONF"
+<VirtualHost *:80>
+    ServerName $DOMAIN
+    DocumentRoot /var/www/html
 
-    # JupyterLab Reverse Proxy
-    location /jupyter/ {
-        proxy_pass http://127.0.0.1:8888/jupyter/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_read_timeout 86400;
-    }
-}
+    RewriteEngine On
+
+    # --- JupyterLab Reverse Proxy (With WebSocket support) ---
+    # Redirect WebSocket traffic first
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/jupyter/(.*) ws://127.0.0.1:8888/jupyter/\$1 [P,L]
+
+    ProxyPass /jupyter/ http://127.0.0.1:8888/jupyter/
+    ProxyPassReverse /jupyter/ http://127.0.0.1:8888/jupyter/
+
+    # --- Streamlit Reverse Proxy (With WebSocket support) ---
+    # Redirect WebSocket traffic first
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/(.*) ws://127.0.0.1:8503/\$1 [P,L]
+
+    ProxyPass / http://127.0.0.1:8503/
+    ProxyPassReverse / http://127.0.0.1:8503/
+
+    # Preserve Host header and forward client protocol
+    ProxyPreserveHost On
+    RequestHeader set X-Forwarded-Proto "http"
+
+    ErrorLog \${APACHE_LOG_DIR}/$DOMAIN-error.log
+    CustomLog \${APACHE_LOG_DIR}/$DOMAIN-access.log combined
+</VirtualHost>
 EOF
 
-# Enable Nginx Site
-ln -sf "$NGINX_CONF" "/etc/nginx/sites-enabled/"
-rm -f /etc/nginx/sites-enabled/default
+# Enable Apache Site (without disabling other sites)
+a2ensite "$DOMAIN.conf"
 
-# Test and Restart Nginx
-nginx -t
-systemctl restart nginx
+# Test and Restart Apache
+apache2ctl -t
+systemctl restart apache2
 
-echo "Nginx reverse proxy configured for $DOMAIN."
+echo "Apache reverse proxy configured for $DOMAIN."
 
 # -----------------------------------------------------------------------------
 # 8. Configure UFW Firewall
 # -----------------------------------------------------------------------------
 echo -e "\n[STEP 8] Configuring Firewall (UFW)..."
 ufw allow OpenSSH
-ufw allow 'Nginx Full'
+ufw allow 'Apache Full'
 echo "Firewall rules updated. To enable UFW, run: sudo ufw enable"
 
 # -----------------------------------------------------------------------------
@@ -230,7 +237,7 @@ echo "==========================================================="
 echo "1. Verify Streamlit dashboard is running: systemctl status streamlit"
 echo "2. Verify JupyterLab is running: systemctl status jupyter"
 echo "3. Generate SSL certificate using Let's Encrypt:"
-echo "   sudo certbot --nginx -d $DOMAIN"
+echo "   sudo certbot --apache -d $DOMAIN"
 echo "4. Access the Streamlit Dashboard at: http://$DOMAIN"
 echo "5. Access JupyterLab at: http://$DOMAIN/jupyter"
 echo "   (Use Token: $JUPYTER_TOKEN)"

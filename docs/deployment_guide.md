@@ -2,7 +2,7 @@
 
 This guide provides a comprehensive, production-grade guide to deploying the **DVLA Ghana Big Data Practical Lab** to a headless Ubuntu 24.04 LTS server. 
 
-It covers user setup, dependencies installation, systemd daemon configuration, Nginx reverse proxying with WebSockets, firewall configuration, and Let's Encrypt SSL certificate generation for `dvla.hcs.co.ke`.
+It covers user setup, dependencies installation, systemd daemon configuration, Apache reverse proxying with WebSockets, firewall configuration, and Let's Encrypt SSL certificate generation for `dvla.hcs.co.ke`.
 
 ---
 
@@ -12,7 +12,7 @@ On the Ubuntu server:
 * **Dedicated User**: `dvla` owns all files and processes (security isolation).
 * **JupyterLab Server**: Runs locally on `127.0.0.1:8888` under path `/jupyter`.
 * **Streamlit Dashboard**: Runs locally on `127.0.0.1:8503`.
-* **Nginx Reverse Proxy**: Listens on port `80` (HTTP) and `443` (HTTPS), handles SSL termination, and routes:
+* **Apache Reverse Proxy**: Listens on port `80` (HTTP) and `443` (HTTPS), handles SSL termination, and routes:
   * `https://dvla.hcs.co.ke/` -> Streamlit Dashboard.
   * `https://dvla.hcs.co.ke/jupyter/` -> JupyterLab Server (with WebSocket support).
 * **Process Manager**: Systemd manages Streamlit and JupyterLab as background services.
@@ -99,9 +99,9 @@ Ubuntu 24.04 requires Java OpenJDK (for PySpark), Python virtual environment too
    ```bash
    sudo apt-get update -y
    ```
-2. Install python3-venv, OpenJDK 17, Nginx, Certbot, and curl:
+2. Install python3-venv, OpenJDK 17, Apache2, Certbot, and curl:
    ```bash
-   sudo apt-get install -y python3 python3-pip python3-venv openjdk-17-jdk-headless nginx certbot python3-certbot-nginx git ufw
+   sudo apt-get install -y python3 python3-pip python3-venv openjdk-17-jdk-headless apache2 certbot python3-certbot-apache git ufw
    ```
 3. Verify Java installation:
    ```bash
@@ -207,51 +207,55 @@ sudo systemctl start jupyter.service
 
 ---
 
-### Step 7: Configure Nginx Reverse Proxy
-Nginx routes public requests to `dvla.hcs.co.ke` onto local ports. It must proxy WebSocket headers, which are required for Streamlit and Jupyter terminal operations.
+### Step 7: Configure Apache Reverse Proxy
+Apache routes public requests to `dvla.hcs.co.ke` onto local ports. It must proxy WebSocket headers, which are required for Streamlit and Jupyter terminal operations.
 
-1. Create a server block config file `/etc/nginx/sites-available/dvla.hcs.co.ke`:
-   ```nginx
-   server {
-       listen 80;
-       server_name dvla.hcs.co.ke;
-
-       # Streamlit App
-       location / {
-           proxy_pass http://127.0.0.1:8503;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection "upgrade";
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-           proxy_buffering off;
-       }
-
-       # JupyterLab Server
-       location /jupyter/ {
-           proxy_pass http://127.0.0.1:8888/jupyter/;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection "upgrade";
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-           proxy_read_timeout 86400;
-       }
-   }
-   ```
-2. Enable the configuration and remove the default Nginx welcome site:
+1. Enable the required proxy, rewrite, and headers modules:
    ```bash
-   sudo ln -sf /etc/nginx/sites-available/dvla.hcs.co.ke /etc/nginx/sites-enabled/
-   sudo rm -f /etc/nginx/sites-enabled/default
+   sudo a2enmod proxy proxy_http proxy_wstunnel rewrite headers
    ```
-3. Test Nginx configuration and reload the service:
+2. Create the virtual host configuration file `/etc/apache2/sites-available/dvla.hcs.co.ke.conf`:
+   ```apache
+   <VirtualHost *:80>
+       ServerName dvla.hcs.co.ke
+       DocumentRoot /var/www/html
+
+       RewriteEngine On
+
+       # --- JupyterLab Reverse Proxy (With WebSocket support) ---
+       # Redirect WebSocket traffic first
+       RewriteCond %{HTTP:Upgrade} websocket [NC]
+       RewriteCond %{HTTP:Connection} upgrade [NC]
+       RewriteRule ^/jupyter/(.*) ws://127.0.0.1:8888/jupyter/$1 [P,L]
+
+       ProxyPass /jupyter/ http://127.0.0.1:8888/jupyter/
+       ProxyPassReverse /jupyter/ http://127.0.0.1:8888/jupyter/
+
+       # --- Streamlit Reverse Proxy (With WebSocket support) ---
+       # Redirect WebSocket traffic first
+       RewriteCond %{HTTP:Upgrade} websocket [NC]
+       RewriteCond %{HTTP:Connection} upgrade [NC]
+       RewriteRule ^/(.*) ws://127.0.0.1:8503/$1 [P,L]
+
+       ProxyPass / http://127.0.0.1:8503/
+       ProxyPassReverse / http://127.0.0.1:8503/
+
+       # Preserve Host header and forward client protocol
+       ProxyPreserveHost On
+       RequestHeader set X-Forwarded-Proto "http"
+
+       ErrorLog ${APACHE_LOG_DIR}/dvla.hcs.co.ke-error.log
+       CustomLog ${APACHE_LOG_DIR}/dvla.hcs.co.ke-access.log combined
+   </VirtualHost>
+   ```
+3. Enable the virtual host site configuration:
    ```bash
-   sudo nginx -t
-   sudo systemctl restart nginx
+   sudo a2ensite dvla.hcs.co.ke.conf
+   ```
+4. Test Apache configuration and restart the service:
+   ```bash
+   sudo apache2ctl -t
+   sudo systemctl restart apache2
    ```
 
 ---
@@ -263,9 +267,9 @@ Secure the server by restricting traffic only to system-essential ports.
    ```bash
    sudo ufw allow OpenSSH
    ```
-2. Allow HTTP/HTTPS traffic through Nginx:
+2. Allow HTTP/HTTPS traffic through Apache:
    ```bash
-   sudo ufw allow 'Nginx Full'
+   sudo ufw allow 'Apache Full'
    ```
 3. Enable the firewall:
    ```bash
@@ -282,11 +286,11 @@ Secure the server by restricting traffic only to system-essential ports.
 Secure all web traffic with automated SSL certificate provisioning through Certbot.
 
 1. Ensure the domain name `dvla.hcs.co.ke` points to the server's public IP address in your DNS records.
-2. Run Certbot to request certificates and automatically configure Nginx SSL settings:
+2. Run Certbot to request certificates and automatically configure Apache SSL settings:
    ```bash
-   sudo certbot --nginx -d dvla.hcs.co.ke
+   sudo certbot --apache -d dvla.hcs.co.ke
    ```
-3. Certbot will ask for an email (for renewal notices) and prompt to agree to terms of service. Select option `2` if prompted to redirect HTTP to HTTPS.
+3. Certbot will ask for an email (for renewal notices) and prompt to agree to terms of service. Certbot will automatically rewrite the virtual host file to add a port 443 VirtualHost and enable SSL.
 4. Verify that the automatic renewal cron job is configured correctly:
    ```bash
    sudo certbot renew --dry-run
