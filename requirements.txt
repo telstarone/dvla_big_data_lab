@@ -1,0 +1,21 @@
+# =============================================================================
+# DVLA Ghana Big Data Practical Lab — Python Dependencies
+# =============================================================================
+# Install with: pip install -r requirements.txt
+#
+# Target environment: Headless Ubuntu 24 server with JupyterLab
+# =============================================================================
+
+# --- Core Data Processing ---
+pandas>=2.0                # DataFrames, CSV I/O, data manipulation
+pyarrow>=14.0              # Columnar in-memory format, Parquet read/write
+
+# --- SQL Profiling (Lab 1) ---
+duckdb>=0.9                # In-process SQL OLAP engine for CSV profiling
+
+# --- Distributed ETL (Lab 2) ---
+pyspark>=3.5               # Apache Spark Python API for scalable ETL
+
+# --- Interactive Dashboard (Task 3) ---
+streamlit>=1.30             # Web application framework for data dashboards
+# altair is bundled with streamlit — no separate install needed
