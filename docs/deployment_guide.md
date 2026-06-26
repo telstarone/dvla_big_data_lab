@@ -11,7 +11,7 @@ It covers user setup, dependencies installation, systemd daemon configuration, N
 On the Ubuntu server:
 * **Dedicated User**: `dvla` owns all files and processes (security isolation).
 * **JupyterLab Server**: Runs locally on `127.0.0.1:8888` under path `/jupyter`.
-* **Streamlit Dashboard**: Runs locally on `127.0.0.1:8501`.
+* **Streamlit Dashboard**: Runs locally on `127.0.0.1:8503`.
 * **Nginx Reverse Proxy**: Listens on port `80` (HTTP) and `443` (HTTPS), handles SSL termination, and routes:
   * `https://dvla.hcs.co.ke/` -> Streamlit Dashboard.
   * `https://dvla.hcs.co.ke/jupyter/` -> JupyterLab Server (with WebSocket support).
@@ -144,7 +144,7 @@ After=network.target
 Type=simple
 User=dvla
 WorkingDirectory=/home/dvla/dvla_big_data_lab
-ExecStart=/home/dvla/dvla_big_data_lab/venv/bin/streamlit run /home/dvla/dvla_big_data_lab/dvla_dashboard.py --server.port=8501 --server.address=127.0.0.1
+ExecStart=/home/dvla/dvla_big_data_lab/venv/bin/streamlit run /home/dvla/dvla_big_data_lab/dvla_dashboard.py --server.port=8503 --server.address=127.0.0.1
 Restart=always
 RestartSec=10
 
@@ -196,7 +196,7 @@ Nginx routes public requests to `dvla.hcs.co.ke` onto local ports. It must proxy
 
        # Streamlit App
        location / {
-           proxy_pass http://127.0.0.1:8501;
+           proxy_pass http://127.0.0.1:8503;
            proxy_http_version 1.1;
            proxy_set_header Upgrade $http_upgrade;
            proxy_set_header Connection "upgrade";

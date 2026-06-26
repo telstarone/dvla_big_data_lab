@@ -123,7 +123,7 @@ After=network.target
 Type=simple
 User=dvla
 WorkingDirectory=$APP_DIR
-ExecStart=$APP_DIR/venv/bin/streamlit run $APP_DIR/dvla_dashboard.py --server.port=8501 --server.address=127.0.0.1
+ExecStart=$APP_DIR/venv/bin/streamlit run $APP_DIR/dvla_dashboard.py --server.port=8503 --server.address=127.0.0.1
 Restart=always
 RestartSec=10
 
@@ -172,7 +172,7 @@ server {
 
     # Streamlit Reverse Proxy
     location / {
-        proxy_pass http://127.0.0.1:8501;
+        proxy_pass http://127.0.0.1:8503;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
