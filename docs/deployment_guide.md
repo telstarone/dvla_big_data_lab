@@ -222,6 +222,9 @@ Apache routes public requests to `dvla.hcs.co.ke` onto local ports. It must prox
 
        RewriteEngine On
 
+       # Redirect /jupyter (no trailing slash) to /jupyter/ to prevent it from matching Streamlit (/)
+       RewriteRule ^/jupyter$ /jupyter/ [R=301,L]
+
        # --- JupyterLab Reverse Proxy (With WebSocket support) ---
        # Redirect WebSocket traffic first
        RewriteCond %{HTTP:Upgrade} websocket [NC]
