@@ -37,6 +37,7 @@ dvla_big_data_lab/
 │   ├── legacy_vehicle_registry.csv
 │   └── payment_transaction_log.csv
 ├── kevin/                        # Instructor Workspace (Solved Labs validation)
+│   ├── Lab0_Big_Data_SQL_and_ETL_Basics.ipynb
 │   ├── Lab1_SQL_Profiling_and_Extraction.ipynb
 │   └── Lab2_PySpark_ETL_and_Transformation.ipynb
 ├── benjamin/                     # Benjamin's Workspace (Manager, MIS)
@@ -52,6 +53,11 @@ dvla_big_data_lab/
 ---
 
 ## 🔬 Lab Curriculum & Objectives
+
+### Lab 0: Big Data, SQL & ETL Basics (Introductory Level)
+* **Goal**: Teach absolute beginners the concepts of relational databases, basic SQL queries, and local ETL processes.
+* **Core Tools**: `DuckDB` (in-process SQL engine) and `Pandas` (Python data manipulation).
+* **Skills Covered**: SQL query structures (`SELECT`, `WHERE`, `ORDER BY`, `LIMIT`), aggregates & groupings (`COUNT`, `GROUP BY`), relational `JOIN` operations, and a mini Python/pandas ETL pipeline to clean and save a CSV.
 
 ### Day 1: SQL Profiling & Legacy Data Extraction (DuckDB)
 * **Goal**: Analyze the anomalies, duplicates, missing values, and mixed format dates inside the raw database.

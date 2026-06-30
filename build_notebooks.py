@@ -7,9 +7,10 @@
 # Purpose:
 #   Programmatically generates valid .ipynb Jupyter Notebook files for each
 #   of the four lab workspaces (kevin, benjamin, albert, peter). Each workspace
-#   receives two notebooks:
-#     1. Lab1_SQL_Profiling_and_Extraction.ipynb  (DuckDB SQL profiling)
-#     2. Lab2_PySpark_ETL_and_Transformation.ipynb (PySpark ETL pipeline)
+#   receives three notebooks:
+#     1. Lab0_Big_Data_SQL_and_ETL_Basics.ipynb   (Big Data, SQL, and ETL Basics)
+#     2. Lab1_SQL_Profiling_and_Extraction.ipynb  (DuckDB SQL profiling)
+#     3. Lab2_PySpark_ETL_and_Transformation.ipynb (PySpark ETL pipeline)
 #
 #   Kevin's workspace is the instructor's pre-flight validation environment.
 #   The three student workspaces are identical in content but personalized
@@ -130,6 +131,389 @@ def save_notebook(notebook: dict, filepath: str) -> None:
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(notebook, f, indent=1, ensure_ascii=False)
     print(f"  [OK] Saved: {filepath}")
+
+
+# =============================================================================
+# LAB 0: BIG DATA, SQL AND ETL BASICS (DuckDB & Pandas)
+# =============================================================================
+
+def build_lab0(student_name: str, role: str, student_folder: str) -> dict:
+    """
+    Build Lab0_Big_Data_SQL_and_ETL_Basics.ipynb.
+
+    This notebook introduces absolute beginners to:
+      1. Big Data concepts (OLTP vs OLAP, columnar formats)
+      2. SQL Querying basics using DuckDB
+      3. ETL concepts using Python & Pandas
+
+    Parameters:
+        student_name:   The student's display name for personalization.
+        role:           The student's job role/title.
+        student_folder: The student's workspace folder name.
+
+    Returns:
+        A complete notebook dictionary ready to be saved as .ipynb.
+    """
+    nb = create_notebook_skeleton()
+    cells = nb["cells"]
+
+    # =========================================================================
+    # CELL 1: Welcome & Overview
+    # =========================================================================
+    cells.append(make_markdown_cell([
+        f"# 🎓 Lab 0: Fundamentals of Big Data, SQL & ETL",
+        f"",
+        f"**Welcome, {student_name}!** ({role})",
+        f"",
+        f"This introductory lab is designed to give you a strong foundation in the core concepts and tools ",
+        f"we will use throughout the training. If you have never written a SQL query or a line of Python code before, ",
+        f"do not worry — this lab will guide you step-by-step through every concept.",
+        f"",
+        f"---",
+        f"",
+        f"## 📚 Core Concepts Table",
+        f"",
+        f"| Concept | Description | Why it matters for DVLA Ghana |",
+        f"|---|---|---|",
+        f"| **Big Data** | Datasets so large or complex that traditional systems cannot handle them efficiently. | DVLA manages millions of vehicle registration and payment records across 20+ branches. |",
+        f"| **SQL (Structured Query Language)** | The standard language for communicating with databases to retrieve and summarize data. | Used to query legacy registries and transaction logs to audit records and find leaks. |",
+        f"| **ETL (Extract, Transform, Load)** | The process of reading raw data from sources, cleaning/modifying it, and loading it into a target system. | Used to clean raw CSVs from branches, standardize formatting, and prepare data for dashboards. |",
+        f"| **OLTP vs. OLAP** | **OLTP** (Online Transaction Processing) is for day-to-day operations (adding a vehicle). **OLAP** (Online Analytical Processing) is for running reports/summaries. | Day-to-day registration systems are OLTP; our audit dashboards are OLAP. |",
+    ]))
+
+    # =========================================================================
+    # CELL 2: Step 1 — Install & Import Required Libraries
+    # =========================================================================
+    cells.append(make_markdown_cell([
+        f"## Step 1: Install and Import Required Libraries",
+        f"",
+        f"**📋 What you will do:**",
+        f"Install and import **DuckDB** (our database engine) and **Pandas** (our data analysis library).",
+        f"",
+        f"**🔧 Code to type:**",
+        f"```python",
+        f"# Install libraries quietly (if not already installed)",
+        f"!pip install duckdb pandas --quiet",
+        f"",
+        f"# Import libraries",
+        f"import duckdb",
+        f"import pandas as pd",
+        f"",
+        f"print('DuckDB version:', duckdb.__version__)",
+        f"print('Pandas version:', pd.__version__)",
+        f"print('✅ Libraries successfully imported!')",
+        f"```",
+        f"",
+        f"**📖 Line-by-line explanation:**",
+        f"- `!pip install duckdb pandas --quiet`: Installs the required Python packages.",
+        f"- `import duckdb`: Imports DuckDB, which lets us run SQL queries inside our Python code.",
+        f"- `import pandas as pd`: Imports Pandas under the shorthand name `pd`. Pandas is the industry standard for working with tables (called DataFrames) in Python.",
+        f"",
+        f"**💡 Why this matters for DVLA:**",
+        f"We will use DuckDB to run fast SQL queries on our raw data, and Pandas to structure, load, and write files in our Python environments.",
+    ]))
+    cells.append(make_code_cell([
+        f"# Step 1: Install and Import Required Libraries",
+        f"# Type your code below",
+        f"",
+    ]))
+
+    # =========================================================================
+    # CELL 3: Step 2 — Create In-Memory DB & Practice Tables
+    # =========================================================================
+    cells.append(make_markdown_cell([
+        f"## Step 2: Create an In-Memory Database and Practice Tables",
+        f"",
+        f"**📋 What you will do:**",
+        f"Establish a database connection and create practice tables in memory so you can query them using SQL.",
+        f"",
+        f"**🔧 Code to type:**",
+        f"```python",
+        f"# Connect to an in-memory DuckDB database",
+        f"con = duckdb.connect()",
+        f"",
+        f"# Create a practice table for vehicles",
+        f"con.execute(\"\"\"",
+        f"    CREATE TABLE vehicles (",
+        f"        vehicle_id VARCHAR,",
+        f"        make VARCHAR,",
+        f"        model VARCHAR,",
+        f"        year INTEGER,",
+        f"        owner_id VARCHAR",
+        f"    )",
+        f"\"\"\")",
+        f"",
+        f"# Insert practice records into the vehicles table",
+        f"con.execute(\"\"\"",
+        f"    INSERT INTO vehicles VALUES",
+        f"    ('V101', 'Toyota', 'Corolla', 2018, 'O001'),",
+        f"    ('V102', 'Hyundai', 'Elantra', 2020, 'O002'),",
+        f"    ('V103', 'Toyota', 'RAV4', 2021, 'O003'),",
+        f"    ('V104', 'Honda', 'Civic', 2019, 'O001'),",
+        f"    ('V105', 'Nissan', 'Patrol', 2015, 'O004')",
+        f"\"\"\")",
+        f"",
+        f"print('✅ Vehicles table created and populated!')",
+        f"```",
+        f"",
+        f"**📖 Line-by-line explanation:**",
+        f"- `con = duckdb.connect()`: Starts an in-process, in-memory database. Since it runs in RAM, no files are written to disk and data resets when the notebook session closes.",
+        f"- `con.execute(\"\"\" CREATE TABLE ... \"\"\")`: Executes SQL commands. We define a schema with columns and their types (`VARCHAR` for text, `INTEGER` for whole numbers).",
+        f"- `INSERT INTO vehicles VALUES ...`: Adds rows of data to our table.",
+        f"",
+        f"**💡 Why this matters for DVLA:**",
+        f"Creating temporary database connections allows you to verify query syntax and perform test transformations before running operations on real production files.",
+    ]))
+    cells.append(make_code_cell([
+        f"# Step 2: Create In-Memory Database and Practice Tables",
+        f"# Type your code below",
+        f"",
+    ]))
+
+    # =========================================================================
+    # CELL 4: Step 3 — Write Your First SQL Query (SELECT, ORDER BY, LIMIT)
+    # =========================================================================
+    cells.append(make_markdown_cell([
+        f"## Step 3: Write Your First SQL Query (SELECT, ORDER BY, LIMIT)",
+        f"",
+        f"**📋 What you will do:**",
+        f"Write a basic query to inspect your tables, order the results, and limit the output size.",
+        f"",
+        f"**🔧 Code to type:**",
+        f"```python",
+        f"# Query all rows and columns from the vehicles table",
+        f"print('=== ALL VEHICLES ===')",
+        f"con.sql('SELECT * FROM vehicles').show()",
+        f"",
+        f"# Query specific columns, ordered by year descending, limited to 3 rows",
+        f"print('=== NEWEST VEHICLES ===')",
+        f"con.sql('SELECT make, model, year FROM vehicles ORDER BY year DESC LIMIT 3').show()",
+        f"```",
+        f"",
+        f"**📖 Line-by-line explanation:**",
+        f"- `SELECT * FROM vehicles`: The asterisk `*` is a wildcard that means 'retrieve all columns'.",
+        f"- `con.sql('...').show()`: Submits the SQL query to DuckDB and formats the result as a printed table.",
+        f"- `SELECT make, model, year`: Only pulls these three columns, filtering out the others.",
+        f"- `ORDER BY year DESC`: Sorts the rows by the `year` column from highest (newest) to lowest (`DESC` stands for descending).",
+        f"- `LIMIT 3`: Ensures that only the top 3 rows are returned. Useful for previewing large datasets.",
+        f"",
+        f"**💡 Why this matters for DVLA:**",
+        f"When dealing with millions of transaction records, you should never load all columns or rows at once. Limiting fields and previewing with `LIMIT` keeps your workspace running fast.",
+    ]))
+    cells.append(make_code_cell([
+        f"# Step 3: Write Your First SQL Query",
+        f"# Type your code below",
+        f"",
+    ]))
+
+    # =========================================================================
+    # CELL 5: Step 4 — Filtering Data (WHERE clause)
+    # =========================================================================
+    cells.append(make_markdown_cell([
+        f"## Step 4: Filtering Data (WHERE clause)",
+        f"",
+        f"**📋 What you will do:**",
+        f"Apply the `WHERE` clause to filter out records that do not meet specific criteria.",
+        f"",
+        f"**🔧 Code to type:**",
+        f"```python",
+        f"# Filter for Toyota vehicles only",
+        f"print('=== TOYOTAS ===')",
+        f"con.sql(\"SELECT * FROM vehicles WHERE make = 'Toyota'\").show()",
+        f"",
+        f"# Filter for vehicles manufactured after 2018",
+        f"print('=== POST-2018 VEHICLES ===')",
+        f"con.sql(\"SELECT * FROM vehicles WHERE year > 2018\").show()",
+        f"```",
+        f"",
+        f"**📖 Line-by-line explanation:**",
+        f"- `WHERE make = 'Toyota'`: Restricts the output to rows where the value in the `make` column is exactly `'Toyota'`. Text literals in SQL are always enclosed in single quotes.",
+        f"- `WHERE year > 2018`: Restricts the output to rows where the numeric value in the `year` column is strictly greater than `2018`.",
+        f"",
+        f"**💡 Why this matters for DVLA:**",
+        f"Filtering data allows you to isolate specific branch offices, focus on vehicle makes with high registration rates, or pinpoint anomalies in registration years.",
+    ]))
+    cells.append(make_code_cell([
+        f"# Step 4: Filtering Data",
+        f"# Type your code below",
+        f"",
+    ]))
+
+    # =========================================================================
+    # CELL 6: Step 5 — Aggregating & Grouping Data (COUNT, SUM, AVG, GROUP BY)
+    # =========================================================================
+    cells.append(make_markdown_cell([
+        f"## Step 5: Aggregating & Grouping Data (COUNT, SUM, AVG, GROUP BY)",
+        f"",
+        f"**📋 What you will do:**",
+        f"Use aggregate functions to calculate summary metrics and group them by a specific attribute.",
+        f"",
+        f"**🔧 Code to type:**",
+        f"```python",
+        f"# Count the total number of vehicles",
+        f"con.sql('SELECT COUNT(*) AS total_vehicles FROM vehicles').show()",
+        f"",
+        f"# Find the count of vehicles grouped by make",
+        f"print('=== VEHICLE COUNT BY MAKE ===')",
+        f"con.sql('SELECT make, COUNT(*) AS count FROM vehicles GROUP BY make').show()",
+        f"```",
+        f"",
+        f"**📖 Line-by-line explanation:**",
+        f"- `COUNT(*)`: Counts the total number of rows that match the query.",
+        f"- `AS total_vehicles`: Renames the output column to a clean alias (`total_vehicles`) for readability.",
+        f"- `GROUP BY make`: Directs SQL to group identical values in the `make` column together, and run the `COUNT(*)` function for each unique group.",
+        f"",
+        f"**💡 Why this matters for DVLA:**",
+        f"Grouping and aggregating are fundamental to analytics. We use it to count total payments per branch or calculate average registration fees by area code.",
+    ]))
+    cells.append(make_code_cell([
+        f"# Step 5: Aggregating & Grouping Data",
+        f"# Type your code below",
+        f"",
+    ]))
+
+    # =========================================================================
+    # CELL 7: Step 6 — Joining Tables (JOIN clause)
+    # =========================================================================
+    cells.append(make_markdown_cell([
+        f"## Step 6: Joining Tables (JOIN clause)",
+        f"",
+        f"**📋 What you will do:**",
+        f"Combine fields from two different tables. First, we will create an `owners` table, then join it with our `vehicles` table based on a shared identification key.",
+        f"",
+        f"**🔧 Code to type:**",
+        f"```python",
+        f"# Create the owners table",
+        f"con.execute(\"\"\"",
+        f"    CREATE TABLE owners (",
+        f"        owner_id VARCHAR,",
+        f"        owner_name VARCHAR,",
+        f"        region VARCHAR",
+        f"    )",
+        f"\"\"\")",
+        f"",
+        f"# Populate the owners table",
+        f"con.execute(\"\"\"",
+        f"    INSERT INTO owners VALUES",
+        f"    ('O001', 'Kofi Mensah', 'Greater Accra'),",
+        f"    ('O002', 'Ama Serwaa', 'Ashanti'),",
+        f"    ('O003', 'Kwame Osei', 'Western'),",
+        f"    ('O004', 'Esi Boateng', 'Greater Accra')",
+        f"\"\"\")",
+        f"",
+        f"# Join vehicles and owners on the shared owner_id",
+        f"print('=== JOINED VEHICLES AND OWNERS ===')",
+        f"con.sql(\"\"\"",
+        f"    SELECT v.vehicle_id, v.make, v.model, o.owner_name, o.region",
+        f"    FROM vehicles v",
+        f"    INNER JOIN owners o ON v.owner_id = o.owner_id",
+        f"\"\"\").show()",
+        f"```",
+        f"",
+        f"**📖 Line-by-line explanation:**",
+        f"- `FROM vehicles v`: Refers to the `vehicles` table, giving it a shorthand alias `v`.",
+        f"- `INNER JOIN owners o ON v.owner_id = o.owner_id`: Matches rows in `vehicles` with rows in `owners` where the value in `owner_id` is identical. `o` is the alias for the `owners` table.",
+        f"- `SELECT v.vehicle_id, ...`: Selects specific columns from each table using the table aliases to avoid ambiguity.",
+        f"",
+        f"**💡 Why this matters for DVLA:**",
+        f"Data is often normalized (stored in separate tables) to reduce redundancy. In our main labs, we join vehicle registries with transaction logs using the unique registration ID to map payments to vehicles.",
+    ]))
+    cells.append(make_code_cell([
+        f"# Step 6: Joining Tables",
+        f"# Type your code below",
+        f"",
+    ]))
+
+    # =========================================================================
+    # CELL 8: Step 7 — Introduction to ETL using Pandas
+    # =========================================================================
+    cells.append(make_markdown_cell([
+        f"## Step 7: Introduction to ETL (Extract, Transform, Load) using Pandas",
+        f"",
+        f"**📋 What you will do:**",
+        f"Run a complete ETL pipeline programmatically using Python and **Pandas**:",
+        f"1. **Extract**: Load raw vehicle data from a dictionary (simulating a CSV file download).",
+        f"2. **Transform**: Clean up names, handle missing values, and calculate zonal regions.",
+        f"3. **Load**: Save the clean dataset to a new CSV file inside your workspace.",
+        f"",
+        f"**🔧 Code to type:**",
+        f"```python",
+        f"# 1. EXTRACT: Create a raw DataFrame from simulated branch files",
+        f"raw_data = {{",
+        f"    'reg_no': ['GW-101-20', 'AS-502-18', 'WR-901-22', 'GW-303-21'],",
+        f"    'owner': ['KOFI MENSAH', 'ama serwaa', 'KWAME OSEI', None],",
+        f"    'fee_paid': [150.0, None, 200.0, -50.0]",
+        f"}}",
+        f"df = pd.DataFrame(raw_data)",
+        f"print('--- RAW DATASET EXTRACTED ---')",
+        f"print(df)",
+        f"print()",
+        f"",
+        f"# 2. TRANSFORM: Clean and standardize the data",
+        f"# A. Capitalize all owner names and replace missing names with 'Unknown'",
+        f"df['owner'] = df['owner'].str.title().fillna('Unknown')",
+        f"",
+        f"# B. Fix fee anomalies: replace negative/null fees with a default fee of 100.0",
+        f"df['fee_paid'] = df['fee_paid'].apply(lambda x: 100.0 if pd.isna(x) or x <= 0 else x)",
+        f"",
+        f"# C. Calculate Zonal Area Codes",
+        f"def get_zonal_code(reg):",
+        f"    if reg.startswith('GW'): return 'ACC-ZONE'",
+        f"    elif reg.startswith('AS'): return 'ASH-ZONE'",
+        f"    else: return 'WES-ZONE'",
+        f"df['zonal_code'] = df['reg_no'].apply(get_zonal_code)",
+        f"",
+        f"print('--- DATASET TRANSFORMED ---')",
+        f"print(df)",
+        f"print()",
+        f"",
+        f"# 3. LOAD: Write clean data to your output folder",
+        f"import os",
+        f"os.makedirs('./output', exist_ok=True)",
+        f"df.to_csv('./output/lab0_clean.csv', index=False)",
+        f"print('✅ Saved clean file to ./output/lab0_clean.csv')",
+        f"print('✅ ETL pipeline complete!')",
+        f"```",
+        f"",
+        f"**📖 Line-by-line explanation:**",
+        f"- `pd.DataFrame(raw_data)`: Converts a Python dictionary into a structured row-and-column DataFrame.",
+        f"- `df['owner'].str.title()`: Standardizes the casing of string names (e.g. `KOFI MENSAH` and `ama serwaa` both become properly formatted title case `Kofi Mensah` and `Ama Serwaa`).",
+        f"- `.fillna('Unknown')`: Finds any null/missing cells in the `owner` column and replaces them with the string `'Unknown'`.",
+        f"- `df['fee_paid'].apply(...)`: Applies a lambda function to clean up fee records. If the fee is missing (`pd.isna(x)`) or invalid/negative (`x <= 0`), it defaults it to `100.0`.",
+        f"- `df.to_csv(..., index=False)`: Writes the clean data to disk as a flat CSV file, excluding the row index column.",
+        f"",
+        f"**💡 Why this matters for DVLA:**",
+        f"This mimics exactly what we do in Lab 2. In real scenarios, we read hundreds of thousands of dirty records from legacy servers, clean fee entries, map regional offices, and load the output as a CSV or Parquet file for dashboard consumption.",
+        f"",
+        f"---",
+        f"*Lab 0 Complete — You have successfully learned the fundamentals of SQL and ETL! You are now fully prepared to tackle Lab 1.*",
+    ]))
+    cells.append(make_code_cell([
+        f"# Step 7: Introduction to ETL",
+        f"# Type your code below",
+        f"",
+    ]))
+
+    # =========================================================================
+    # CELL 9: Cleanup — Close connection
+    # =========================================================================
+    cells.append(make_markdown_cell([
+        f"## Cleanup: Close the Connection",
+        f"",
+        f"**🔧 Code to type:**",
+        f"```python",
+        f"# Close database connections when finished",
+        f"con.close()",
+        f"print('✅ DuckDB connection closed.')",
+        f"```",
+    ]))
+    cells.append(make_code_cell([
+        f"# Cleanup: Close the connection",
+        f"# Type your code below",
+        f"",
+    ]))
+
+    return nb
 
 
 # =============================================================================
@@ -1593,17 +1977,22 @@ def build_lab2(student_name: str, role: str) -> dict:
 def main():
     """
     Main entry point. Creates workspace directories for all four profiles
-    and generates both lab notebooks in each.
+    and generates all three lab notebooks in each.
     """
     print("=" * 70)
     print("  DVLA Ghana Big Data Lab -- Notebook Builder")
-    print("  Generating Lab 1 & Lab 2 for all workspaces")
+    print("  Generating Lab 0, Lab 1 & Lab 2 for all workspaces")
     print("=" * 70)
 
     for folder, name, role in WORKSPACES:
         workspace_dir = os.path.join(BASE_DIR, folder)
         os.makedirs(workspace_dir, exist_ok=True)
         print(f"\n[BUILD] Building notebooks for: {name} ({role}) -> ./{folder}/")
+
+        # Build and save Lab 0
+        lab0 = build_lab0(name, role, folder)
+        lab0_path = os.path.join(workspace_dir, "Lab0_Big_Data_SQL_and_ETL_Basics.ipynb")
+        save_notebook(lab0, lab0_path)
 
         # Build and save Lab 1
         lab1 = build_lab1(name, role, folder)
@@ -1620,15 +2009,16 @@ def main():
     print("  NOTEBOOK GENERATION SUMMARY")
     print("=" * 70)
     for folder, name, role in WORKSPACES:
+        lab0_exists = os.path.exists(os.path.join(BASE_DIR, folder, "Lab0_Big_Data_SQL_and_ETL_Basics.ipynb"))
         lab1_exists = os.path.exists(os.path.join(BASE_DIR, folder, "Lab1_SQL_Profiling_and_Extraction.ipynb"))
         lab2_exists = os.path.exists(os.path.join(BASE_DIR, folder, "Lab2_PySpark_ETL_and_Transformation.ipynb"))
-        print(f"  {name:25s} Lab1: {'[OK]' if lab1_exists else '[FAIL]'}  Lab2: {'[OK]' if lab2_exists else '[FAIL]'}")
+        print(f"  {name:25s} Lab0: {'[OK]' if lab0_exists else '[FAIL]'}  Lab1: {'[OK]' if lab1_exists else '[FAIL]'}  Lab2: {'[OK]' if lab2_exists else '[FAIL]'}")
 
     # --- Validate JSON integrity ---
     print(f"\n  Validating notebook JSON integrity...")
     errors = 0
     for folder, name, role in WORKSPACES:
-        for nb_name in ["Lab1_SQL_Profiling_and_Extraction.ipynb", "Lab2_PySpark_ETL_and_Transformation.ipynb"]:
+        for nb_name in ["Lab0_Big_Data_SQL_and_ETL_Basics.ipynb", "Lab1_SQL_Profiling_and_Extraction.ipynb", "Lab2_PySpark_ETL_and_Transformation.ipynb"]:
             nb_path = os.path.join(BASE_DIR, folder, nb_name)
             try:
                 with open(nb_path, "r", encoding="utf-8") as f:
@@ -1642,11 +2032,11 @@ def main():
                 errors += 1
 
     if errors == 0:
-        print(f"  [OK] All 8 notebooks passed JSON integrity validation!")
+        print(f"  [OK] All 12 notebooks passed JSON integrity validation!")
     else:
         print(f"  [WARN] {errors} notebook(s) failed validation.")
 
-    total_notebooks = len(WORKSPACES) * 2
+    total_notebooks = len(WORKSPACES) * 3
     print(f"\n  Total notebooks generated: {total_notebooks}")
     print("=" * 70)
 
