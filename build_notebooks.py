@@ -136,7 +136,7 @@ def save_notebook(notebook: dict, filepath: str) -> None:
 # LAB 1: SQL PROFILING AND EXTRACTION (DuckDB)
 # =============================================================================
 
-def build_lab1(student_name: str, role: str) -> dict:
+def build_lab1(student_name: str, role: str, student_folder: str) -> dict:
     """
     Build Lab1_SQL_Profiling_and_Extraction.ipynb.
 
@@ -146,8 +146,9 @@ def build_lab1(student_name: str, role: str) -> dict:
     issues (duplicates, nulls, orphans, invalid amounts) using pure SQL.
 
     Parameters:
-        student_name: The student's display name for personalization.
-        role:         The student's job role/title.
+        student_name:   The student's display name for personalization.
+        role:           The student's job role/title.
+        student_folder: The student's workspace folder name.
 
     Returns:
         A complete notebook dictionary ready to be saved as .ipynb.
@@ -268,7 +269,7 @@ def build_lab1(student_name: str, role: str) -> dict:
         f"  CSV reader. `read_csv_auto` automatically detects delimiters, data types, and headers. ",
         f"  The result is stored as a named table called `registry`.",
         f"- The path `../raw_data/` means 'go up one directory from this notebook, then into raw_data'. ",
-        f"  This works because your notebook is inside your personal workspace folder (e.g., `./benjamin/`).",
+        f"  This works because your notebook is inside your personal workspace folder (e.g., `./{student_folder}/`).",
         f"",
         f"**💡 Why this matters for DVLA:**",
         f"Loading data into memory tables allows us to run SQL queries at high speed without modifying ",
@@ -1605,7 +1606,7 @@ def main():
         print(f"\n[BUILD] Building notebooks for: {name} ({role}) -> ./{folder}/")
 
         # Build and save Lab 1
-        lab1 = build_lab1(name, role)
+        lab1 = build_lab1(name, role, folder)
         lab1_path = os.path.join(workspace_dir, "Lab1_SQL_Profiling_and_Extraction.ipynb")
         save_notebook(lab1, lab1_path)
 
